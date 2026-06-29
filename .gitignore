@@ -1,0 +1,128 @@
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# ---------- Testing / Coverage ----------
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# ---------- Jupyter / Notebooks ----------
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
+
+# ---------- Type checkers / Linters ----------
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+.ruff_cache/
+
+# ---------- Environment / Secrets ----------
+.env
+.env.*
+!.env.example
+*.local
+secrets.json
+*.key
+*.pem
+
+# ---------- IDEs / Editors ----------
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# ---------- OS ----------
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ---------- Machine Learning / RL artifacts ----------
+# Trained models, checkpoints, and logs
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.h5
+*.pkl
+*.pickle
+checkpoints/
+runs/
+logs/
+wandb/
+mlruns/
+tensorboard/
+events.out.tfevents.*
+
+# Datasets / large generated data (keep small sample fixtures out of ignore if needed)
+data/raw/
+data/processed/
+*.parquet
+*.feather
+*.npy
+*.npz
+*.csv.gz
+
+# Simulation outputs / results
+results/
+outputs/
+figures/
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+!docs/**/*.png
+!docs/**/*.svg
+
+# ---------- Logs ----------
+*.log
+logs/
+pip-log.txt
+pip-delete-this-directory.txt
