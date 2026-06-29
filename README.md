@@ -1,204 +1,269 @@
-# rtb-rl — Deep-RL low-latency RTB optimization engine (PoC)
+<div align="center">
 
-Because RL doesn't need to be the unpopular guy at the classroom.
+# 📈 rtb-rl
 
-A reinforcement-learning engine for **real-time bidding (RTB)** ad-yield optimization. For each
-bid request it selects the advertisement with the **highest probability of a click** — using
-website context, user engagement, and historical auction logs — serves the decision under a
-**~10 ms SLA**, and **retrains every *N* hours** to track market drift (new competitor
-campaigns, budget/pacing changes). It also handles the **cold-start** problem for brand-new
-ads, campaigns and users.
+*Because RL doesn't need to be the unpopular guy at the classroom.*
 
-This is a self-contained rebuild driven entirely by **synthetic data**, so the whole pipeline
-runs locally end-to-end with no proprietary data and no external services.
+***Deep reinforcement learning for real-time ad bidding.*** *Picks the ad most likely to be clicked, in under 10 ms, and retrains itself as the market moves.*
 
-> Stack (all 2024-era): Python 3.12 · PyTorch 2 · FastAPI · Gymnasium · LangChain +
-> multilingual-e5 · Redis · PostgreSQL · Vertex AI · Docker · Terraform · GitHub Actions.
+![Python](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)
+![Poetry](https://img.shields.io/badge/packaging-poetry-60A5FA?logo=poetry&logoColor=white)
+![PyTorch](https://img.shields.io/badge/PyTorch-2.x-EE4C2C?logo=pytorch&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
+![Gymnasium](https://img.shields.io/badge/Gymnasium-RL-0081A5)
+![License](https://img.shields.io/badge/license-Apache--2.0-green)
 
----
-
-## Results (from `rtb demo`, hashing embedder, seed 42)
-
-```
-  Behavior policy CTR  : 13.301%  (random selection — the logging policy)
-  Learned policy CTR   : 40.022%  (Dueling Double-DQN + CQL, argmax-Q)
-  Oracle ceiling CTR   : 52.489%  (best ad in pool under the true click model)
-  >> CTR uplift        : +200.9% vs behavior
-  >> Oracle gap closed : 68.2%
-  SNIPS logged uplift  : +118.3%
-
-Cold-start: a held-out ad with NO history ranks #2/41 on a matching site,
-            scored purely from its content neighbors.
-
-Serving latency (in-process, CPU): p50 0.77 ms · p95 1.05 ms · p99 1.14 ms
-```
+</div>
 
 ---
 
-## How it works
+## 🚀 Highlights
 
-```
-                          OFFLINE (batch, every N hours)                         ONLINE (10ms)
-  ┌───────────────┐   ┌───────────────────────────┐   ┌──────────────────┐   ┌──────────────┐
-  │ synthetic     │   │ embeddings (LangChain/e5,  │   │ Dueling Double-DQN│  │ FastAPI /bid │
-  │ data:         │──▶│ hashing fallback)          │──▶│ + CQL  (offline   │─▶│ argmax over  │
-  │ sites/users/  │   │ → user↔site AFFINITY (cos) │   │ batch RL on WON   │  │ candidate ads│
-  │ ads/bid-logs  │   │ → market context           │   │ impressions)      │  │ warm model + │
-  └───────────────┘   │ → FeatureSnapshot          │   └─────────┬─────────┘  │ Redis cache  │
-         │            └───────────────────────────┘             │            └──────┬───────┘
-         │                                                       ▼                   │ hot-swap
-         │            ┌───────────────────────────┐   ┌──────────────────┐          │
-         └───────────▶│ Gymnasium sim (auction +   │◀──│ model registry   │◀─────────┘
-            ground-   │ click + budget pacing)     │   │ (versioned)      │   sim-gated promote
-            truth     │ → CTR-uplift eval / gate   │   └──────────────────┘
-            click     └───────────────────────────┘
-            model
-```
-
-### Key design decisions
-
-- **DQN over *ad features*, not a fixed action head.** The Q-network scores
-  `Q(state, ad_features)` and the server argmaxes over the eligible candidate ads. Representing
-  an ad by its features/embeddings (rather than a per-ad output unit) is what makes a
-  variable/growing inventory and cold-start tractable. Architecture: **Dueling** value/advantage
-  heads, **Double-DQN** targets, and a **Conservative Q-Learning (CQL)** penalty — the standard
-  offline/batch-RL correction so the model doesn't overvalue actions absent from the logs.
-- **Click-probability objective.** Training uses **won impressions only** (a click is
-  observable only when the ad was shown), so `Q(s,a)` learns expected click value *given the ad
-  is served* — exactly the ranking the selector needs. Bidding is a separate value-based step.
-- **Why RL and not a plain bandit.** Campaign **budget/pacing** is part of the state, so each
-  served impression depletes budget and couples successive requests into an episode — making
-  `gamma > 0` meaningful. The offline log fit is one-step; the Gymnasium simulator provides the
-  sequential, budget-paced MDP (and the Double-DQN bootstrap path) for fine-tuning.
-- **Embeddings & offline affinity.** Website = embed(vertical + JP title + description); user =
-  engagement-weighted mean of engaged-site embeddings. **Affinity = cosine**, computed offline
-  (top-K per user) and hot-cached. A hybrid embedder defaults to a local multilingual model
-  (multilingual-e5 via LangChain), can switch to a hosted API, and falls back to a deterministic
-  **character-n-gram hashing** embedder so everything runs offline / in CI with no download.
-- **Cold start.** A learned per-ad **id-embedding** captures residual ad appeal; a brand-new ad
-  borrows a similarity-weighted average of its content-neighbors' id-embeddings and CTR prior
-  (kNN), so it is scored sensibly on impression #1. New users fall back to a content-aligned
-  prior that decays as real engagement accrues.
-- **10 ms serving.** Features are read from a warm in-process snapshot (dict lookup), the model
-  stays in memory, and scoring is a single batched `torch.inference_mode` matmul over the
-  candidates — **no Postgres on the hot path**. A background poller hot-swaps the model when the
-  retrain loop promotes a new version.
+- 🎯 **Picks the highest-click-probability ad** per bid request — Dueling **Double-DQN + CQL** over website, user and auction features.
+- ⚡ **~10 ms serving** — warm in-memory model + Redis feature cache, single batched matmul (`p99 ≈ 1 ms` locally).
+- ♻️ **Self-adapting** — retrains every *N* hours and **hot-swaps** the model when a new one beats the incumbent in simulation.
+- ❄️ **Solves cold-start** — brand-new ads/users are scored from their nearest neighbors in embedding space, no history required.
+- 🧩 **Runs with zero setup** — synthetic data + a deterministic offline embedder mean `rtb demo` works with no data, no keys, no services.
+- 🏢 **Production-shaped** — FastAPI · Redis · PostgreSQL · Docker Compose · Vertex AI + Terraform stubs · GitHub Actions CI.
 
 ---
 
-## Quickstart
+## 📖 Overview
 
-Requires **Python 3.12** (PyTorch has no 3.13/3.14 wheels yet). No GPU, no network needed for
-the demo (it uses the hashing embedder + in-memory store).
+`rtb-rl` is a reconstruction of a real-time-bidding (RTB) yield-optimization PoC built at a
+Japanese ad-tech company. For every incoming bid opportunity it selects the advertisement with
+the **highest probability of getting a click** — using the website's context, the user's
+engagement profile, and historical auction logs — suggests a bid, and serves the decision
+under a low-latency SLA. The policy **retrains on a schedule** to track market drift (new
+competitor campaigns, budget/pacing changes) and degrades gracefully for **never-seen ads and
+users**.
+
+Everything is driven by **synthetic data** generated from a known latent click model that the
+offline simulator reuses as ground truth, so the entire pipeline — embeddings → affinity →
+DQN training → simulation → serving → retraining — runs locally end-to-end.
+
+> 🇯🇵 深層強化学習による低遅延RTB（リアルタイム入札）最適化エンジン。ウェブサイト・ユーザー・過去の入札ログから
+> **クリック率が最も高い広告**を選び、10ms以内で配信。市場の変化に追従するためN時間ごとに再学習し、
+> 新規広告・ユーザーのコールドスタート問題にも対応します。
+
+---
+
+## 🧱 Tech stack
+
+| Layer | Tools |
+|---|---|
+| **ML / RL** | PyTorch 2 · Gymnasium · Conservative Q-Learning (offline RL) · scikit-learn (kNN) |
+| **Embeddings** | LangChain + `multilingual-e5` · deterministic hashing fallback |
+| **Serving** | FastAPI · Uvicorn · Pydantic v2 · Typer (CLI) |
+| **Data / state** | Polars + Parquet · Redis (hot cache) · PostgreSQL / SQLAlchemy (feature store) |
+| **Orchestration** | APScheduler · Docker Compose · Vertex AI Pipelines *(stub)* · Terraform *(stub)* |
+| **Tooling** | Poetry · Ruff · Mypy · Pytest · GitHub Actions |
+
+---
+
+## 🗺️ Architecture
+
+```mermaid
+flowchart LR
+    subgraph OFF["🛠️ Offline · batch · every N hours"]
+        D["Synthetic data<br/>sites · users · ads · bid logs"] --> E["Embeddings<br/>multilingual-e5 / hashing"]
+        E --> A["User↔Site affinity<br/>cosine · top-K"]
+        E --> F["FeatureSnapshot<br/>+ market context"]
+        A --> F
+        F --> T["Dueling Double-DQN + CQL<br/>offline batch RL · won impressions"]
+        T --> S["Gymnasium sim<br/>auction · click · budget pacing"]
+        F --> S
+        T --> R[("Model Registry<br/>versioned")]
+        S -->|"CTR-uplift gate"| R
+    end
+
+    subgraph ON["⚡ Online · ~10 ms"]
+        REQ["Bid request"] --> SCORE["FastAPI /bid<br/>argmax Q over candidate ads"]
+        CACHE[("Redis<br/>feature cache")] --> SCORE
+        SCORE --> RESP["Chosen ad + suggested bid"]
+    end
+
+    R -. "hot-swap" .-> SCORE
+    F -. "warm load" .-> CACHE
+
+    classDef off fill:#eef6ff,stroke:#4a90d9,color:#0b3d66;
+    classDef on fill:#eafaef,stroke:#3aa657,color:#0b4d2c;
+    class D,E,A,F,T,S,R off;
+    class REQ,SCORE,CACHE,RESP on;
+```
+
+### 🧠 Design decisions
+
+- **DQN over *ad features*, not a fixed action head.** The network scores `Q(state, ad_features)`
+  and the server argmaxes over eligible ads. Representing an ad by its features/embeddings
+  (rather than a per-ad output unit) is what makes a variable inventory and cold-start tractable.
+- **Click-probability objective.** Training uses **won impressions only** (a click is observable
+  only when the ad was shown), so `Q(s,a)` learns expected click value *given the ad is served*.
+- **Conservative offline RL.** A **CQL** penalty stops the model overvaluing actions absent from
+  the logs — the key correction when learning a policy from logged bids you can't safely explore.
+- **Why RL, not a bandit.** Campaign **budget/pacing** is part of the state, coupling successive
+  impressions into an episode; the Gymnasium simulator provides that sequential MDP for tuning.
+- **Cold-start by borrowing.** A learned per-ad id-embedding captures residual appeal; a new ad
+  borrows a similarity-weighted blend of its content-neighbors' id-embeddings + CTR prior.
+- **10 ms serving.** Features come from a warm in-process snapshot (no Postgres on the hot path),
+  the model stays in memory, scoring is one batched `torch.inference_mode` matmul.
+
+---
+
+## 📊 Results
+
+From `rtb demo` (hashing embedder, seed 42): 60 sites · 2,000 users · 112 ads · 50k bid logs.
+
+| Metric | Value |
+|---|---|
+| Behavior policy CTR (logging policy, random) | **13.30 %** |
+| **Learned policy CTR** (DQN argmax) | **40.02 %** |
+| Oracle ceiling CTR (best ad in pool) | 52.49 % |
+| **CTR uplift vs behavior** | **+200.9 %** |
+| Oracle gap closed | 68.2 % |
+| Cold-start ad (no history) rank on a matching site | **#2 / 41** |
+| Serving latency (CPU, in-process) | `p50 0.77 ms` · `p99 1.14 ms` |
+
+---
+
+## ⚡ Installation
+
+Requires **Python 3.12** (PyTorch has no 3.13/3.14 wheels yet). No GPU or network needed.
+
+### With Poetry (recommended)
 
 ```bash
-py -3.12 -m venv .venv                 # Windows;  python3.12 -m venv .venv  on *nix
-.venv\Scripts\activate                 # source .venv/bin/activate  on *nix
+poetry install                      # core deps (CPU torch from the pytorch-cpu source)
+poetry install --extras embeddings  # + real multilingual-e5 embeddings (optional)
+poetry run rtb demo                 # full pipeline end-to-end
+```
 
+### With pip
+
+```bash
+py -3.12 -m venv .venv && .venv\Scripts\activate     # *nix: python3.12 -m venv .venv && source .venv/bin/activate
 pip install torch --index-url https://download.pytorch.org/whl/cpu
 pip install -e ".[dev]"
-
-rtb demo                               # generate → features → train → evaluate (end-to-end)
+rtb demo
 ```
 
-`rtb demo` prints the CTR-uplift table and a cold-start example shown above.
+---
 
-### Individual stages
+## 🖥️ Commands
 
-```bash
-rtb generate-data      # synthesize websites / users / ads / bid logs  → data/raw/
-rtb build-features     # embeddings + affinity + market context        → data/processed/
-rtb train              # offline Dueling Double-DQN + CQL              → registry/
-rtb sim                # evaluate the latest model (CTR uplift)
-rtb serve              # FastAPI bidding service on :8000
-rtb retrain --once     # one retrain cycle (warm-start + sim-gated promote)
-rtb retrain            # continuous loop every retrain.interval_hours (APScheduler)
-```
+| Command | What it does |
+|---|---|
+| `rtb demo` | **Run everything**: generate data → build features → train → evaluate, and print the CTR-uplift table |
+| `rtb generate-data` | Synthesize websites / users / ads / bid logs → `data/raw/` |
+| `rtb build-features` | Embeddings + user↔site affinity + market context → `data/processed/` |
+| `rtb train` | Train the offline Dueling Double-DQN + CQL and register the model → `registry/` |
+| `rtb sim` | Evaluate the latest model in the simulator (CTR uplift vs behavior & oracle) |
+| `rtb serve` | Start the FastAPI bidding service on `:8000` |
+| `rtb retrain --once` | Run one retrain cycle (warm-start → sim-gate → promote) |
+| `rtb retrain` | Run the continuous loop every `retrain.interval_hours` (APScheduler) |
 
-Equivalent `make` targets exist (`make demo`, `make train`, …) and thin `scripts/*.py` wrappers.
+> Prefix with `poetry run` when using Poetry (e.g. `poetry run rtb serve`). Equivalent `make`
+> targets (`make demo`, `make train`, …) and `scripts/*.py` wrappers are also provided.
 
-### Serving
+### Score a bid
 
 ```bash
 rtb serve
-curl -s localhost:8000/healthz
 curl -s -X POST localhost:8000/bid -H 'content-type: application/json' \
   -d '{"request_id":"r1","website_id":"w0000","placement":"header","user_id":"u000001"}'
-# → {"ad_id":"ad011","bid_price_jpy":155.2,"predicted_click_value":1.2,"model_version":...,"latency_ms":0.8}
+# → {"ad_id":"ad011","bid_price_jpy":155.2,"predicted_click_value":1.21,"model_version":"v…","latency_ms":0.8}
 ```
 
 ---
 
-## Real-infra path (Docker / Postgres / Redis)
+## ⚙️ Configuration
 
-`docker compose up --build` brings up Postgres (durable feature store) + Redis (hot cache) +
-the API + a retrainer; a one-shot `bootstrap` service seeds data/features/model:
+All settings live in [`configs/config.yaml`](configs/config.yaml); every field is overridable by
+environment variable `RTB__SECTION__FIELD`. Secrets come from the environment — see
+[`.env.example`](.env.example).
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `embeddings.provider` | `local` | `local` (e5) · `api` (Vertex/OpenAI) · `hashing` (offline fallback) |
+| `store.feature_backend` | `memory` | durable store: `memory` · `sqlite` · `postgres` |
+| `store.cache_backend` | `memory` | hot cache: `memory` · `redis` |
+| `rl.cql_alpha` | `1.0` | strength of the Conservative Q-Learning penalty |
+| `rl.gamma` | `0.85` | discount (sequential budget pacing) |
+| `retrain.interval_hours` | `6` | retrain cadence |
+| `retrain.uplift_gate` | `0.0` | promote a new model only if sim CTR-uplift ≥ this |
+
+### Embedding providers
+
+| Provider | `embeddings.provider` | Needs | Notes |
+|---|---|---|---|
+| **Hashing** | `hashing` | nothing | Deterministic char-n-gram fallback; default-on when the local model is unavailable. Used in CI/demo. |
+| **Local** | `local` | `--extras embeddings` | `multilingual-e5` via LangChain; best semantic quality for Japanese. |
+| **API** | `api` | credentials | Vertex AI or OpenAI embeddings via LangChain. |
+
+---
+
+## 🐳 Docker & production path
+
+`docker compose up --build` brings up **Postgres** (durable feature store) + **Redis** (hot
+cache) + the **API** + a **retrainer**; a one-shot `bootstrap` service seeds data/features/model.
 
 ```bash
 docker compose up --build
 curl -s localhost:8000/healthz
 ```
 
-`infra/terraform/` (Cloud Run + Memorystore + Cloud SQL + Artifact Registry) and
-`infra/vertex/pipeline.py` (Vertex AI Pipelines DAG) document the GCP topology as reviewed
-stubs. The every-N-hours retrain DAG maps 1:1 onto a Vertex Pipelines schedule.
+[`infra/terraform/`](infra/terraform) (Cloud Run + Memorystore + Cloud SQL) and
+[`infra/vertex/pipeline.py`](infra/vertex/pipeline.py) (Vertex AI Pipelines DAG) document the GCP
+topology as reviewed stubs — the every-*N*-hours retrain DAG maps 1:1 onto a Vertex Pipelines schedule.
 
 ---
 
-## Configuration
+## 🧪 Testing & quality
 
-All knobs live in [configs/config.yaml](configs/config.yaml); every field is overridable by env
-var `RTB__SECTION__FIELD` (e.g. `RTB__EMBEDDINGS__PROVIDER=local`,
-`RTB__STORE__CACHE_BACKEND=redis`, `RTB__RETRAIN__INTERVAL_HOURS=6`). Secrets (`POSTGRES_DSN`,
-`REDIS_URL`, API keys) come from the environment — see [.env.example](.env.example).
+```bash
+poetry run pytest -q          # 17 tests, fully offline (~8s)
+poetry run ruff check src tests scripts
+poetry run mypy src
+```
 
-Notable: `embeddings.provider` (`local`|`api`|`hashing`), `store.feature_backend`
-(`memory`|`sqlite`|`postgres`), `store.cache_backend` (`memory`|`redis`), `rl.cql_alpha`,
-`rl.gamma`, `retrain.interval_hours`, `retrain.uplift_gate`.
-
-For real multilingual embeddings: `pip install -e ".[embeddings]"` and set
-`RTB__EMBEDDINGS__PROVIDER=local` (downloads multilingual-e5).
+CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs lint + types + tests + an
+end-to-end `rtb demo` smoke test on Python 3.12.
 
 ---
 
-## Project layout
+## 📂 Project layout
 
 ```
 src/rtb_rl/
   config.py schemas.py registry.py cli.py
   data/        synth.py (latent click model) · loaders.py (parquet)
-  embeddings/  base · local (e5) · api (vertex/openai) · hashing · factory
+  embeddings/  base · local (e5) · api · hashing · factory
   features/    website · user · affinity (offline top-K) · encode · store (snapshot/SQL/Redis)
-  rl/          networks (dueling) · replay (offline dataset) · agent (Double-DQN+CQL) ·
-               trainer · cold_start (kNN priors)
+  rl/          networks (dueling) · replay · agent (Double-DQN + CQL) · trainer · cold_start
   sim/         env (Gymnasium, budget-paced) · evaluate (CTR uplift + SNIPS)
   serving/     app (FastAPI) · inference (BidScorer) · deps (hot-swap) · cache
   pipelines/   build_features · train · retrain_loop
-tests/         17 tests — fully offline (hashing embedder + in-memory store)
-infra/         terraform/ (GCP stub) · vertex/ (pipeline stub)
-configs/ scripts/ Dockerfile docker-compose.yml .github/workflows/ci.yml
+tests/  infra/  configs/  scripts/  Dockerfile  docker-compose.yml
 ```
 
 ---
 
-## Testing & quality
+## ⚠️ Limitations
 
-```bash
-pytest -q                       # 17 tests, offline, ~9s
-ruff check src tests scripts
-mypy src
-```
-
-CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs lint + types + tests + an
-end-to-end `rtb demo` smoke test on Python 3.12.
-
----
-
-## Notes & limitations (it's a PoC)
-
-- Synthetic data is generated from a known latent click model that is also the simulator's
-  ground truth, so reported uplift is an upper-bound-style sanity signal, not a production claim.
+- Synthetic data is generated from a known click model that is also the simulator's ground
+  truth, so reported uplift is a sanity signal, not a production claim.
 - Offline log training is one-step (independent impressions); the sequential `gamma>0` path is
   exercised via the simulator. SNIPS is a coarse, high-variance off-policy check.
-- The hashing embedder is purely lexical; install the `[embeddings]` extra for semantic
-  multilingual embeddings (which materially improves cold-start neighbor quality).
+- The hashing embedder is purely lexical — install the `embeddings` extra for semantic quality.
+
+---
+
+## 📜 License
+
+Apache-2.0 — see [`LICENSE`](LICENSE).
+
+<div align="center">
+
+Built as a portfolio reconstruction of a Japanese ad-tech RTB PoC. ☕
+
+</div>
