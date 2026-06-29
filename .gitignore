@@ -65,7 +65,8 @@ secrets.json
 *.key
 *.pem
 
-# ---------- IDEs / Editors ----------
+# ---------- IDEs / Editors / Agents ----------
+.claude/
 .idea/
 .vscode/
 *.swp
