@@ -1,65 +1,71 @@
-[tool.poetry]
+[project]
 name = "rtb-rl"
 version = "0.1.0"
 description = "Deep-RL low-latency RTB (real-time bidding) optimization engine — PoC"
-authors = ["rtb-rl <dev@rtb-rl.local>"]
+authors = [{ name = "rtb-rl", email = "dev@rtb-rl.local" }]
 license = "Apache-2.0"
 readme = "README.md"
+requires-python = ">=3.11,<3.13"
 keywords = ["rtb", "reinforcement-learning", "dqn", "adtech", "bidding"]
-packages = [{ include = "rtb_rl", from = "src" }]
 
-[tool.poetry.dependencies]
-python = ">=3.11,<3.13"
 # Core — enough to run `poetry run rtb demo` end-to-end with the hashing embedder +
 # in-memory store, i.e. with NO network access and NO external services.
-numpy = ">=1.26"
-polars = ">=1.0"
-pyarrow = ">=16.0"
-pydantic = ">=2.7"
-pydantic-settings = ">=2.3"
-pyyaml = ">=6.0"
-torch = { version = ">=2.2", source = "pytorch-cpu" }
-gymnasium = ">=0.29"
-scikit-learn = ">=1.4"
-fastapi = ">=0.111"
-uvicorn = { version = ">=0.30", extras = ["standard"] }
-redis = ">=5.0"
-fakeredis = ">=2.23"
-sqlalchemy = ">=2.0"
-apscheduler = ">=3.10"
-httpx = ">=0.27"
-typer = ">=0.12"
-# Optional: real multilingual embeddings (the local embedder imports these lazily and falls
-# back to the hashing embedder when absent).
-langchain = { version = ">=0.3", optional = true }
-langchain-huggingface = { version = ">=0.1", optional = true }
-sentence-transformers = { version = ">=3.0", optional = true }
-# Optional: real Postgres backend (sqlite/memory work without these).
-asyncpg = { version = ">=0.29", optional = true }
-psycopg = { version = ">=3.2", extras = ["binary"], optional = true }
+dependencies = [
+    "numpy>=1.26",
+    "polars>=1.0",
+    "pyarrow>=16.0",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "pyyaml>=6.0",
+    "torch>=2.2",
+    "gymnasium>=0.29",
+    "scikit-learn>=1.4",
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.30",
+    "redis>=5.0",
+    "fakeredis>=2.23",
+    "sqlalchemy>=2.0",
+    "apscheduler>=3.10",
+    "httpx>=0.27",
+    "typer>=0.12",
+]
 
-[tool.poetry.extras]
-embeddings = ["langchain", "langchain-huggingface", "sentence-transformers"]
-postgres = ["asyncpg", "psycopg"]
+[project.optional-dependencies]
+# Real multilingual embeddings (the local embedder imports these lazily and falls back to the
+# hashing embedder when absent).
+embeddings = [
+    "langchain>=0.3",
+    "langchain-huggingface>=0.1",
+    "sentence-transformers>=3.0",
+]
+# Real Postgres backend (sqlite/memory work without these).
+postgres = ["asyncpg>=0.29", "psycopg[binary]>=3.2"]
+dev = [
+    "ruff>=0.5",
+    "mypy>=1.10",
+    "pytest>=8.2",
+    "pytest-asyncio>=0.23",
+    "types-PyYAML",
+]
 
-[tool.poetry.group.dev.dependencies]
-ruff = ">=0.5"
-mypy = ">=1.10"
-pytest = ">=8.2"
-pytest-asyncio = ">=0.23"
-types-PyYAML = "*"
-
-[tool.poetry.scripts]
+[project.scripts]
 rtb = "rtb_rl.cli:app"
 
-# CPU-only torch wheels — keeps `poetry install` lean and avoids the CUDA build.
+[tool.poetry]
+packages = [{ include = "rtb_rl", from = "src" }]
+
+# Poetry-only enrichment: pull torch from the CPU wheel index so `poetry install` stays lean
+# and avoids the CUDA build. (pip users install CPU torch via the index-url in the README/CI.)
+[tool.poetry.dependencies]
+torch = { source = "pytorch-cpu" }
+
 [[tool.poetry.source]]
 name = "pytorch-cpu"
 url = "https://download.pytorch.org/whl/cpu"
 priority = "explicit"
 
 [build-system]
-requires = ["poetry-core>=1.9.0"]
+requires = ["poetry-core>=2.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.ruff]
