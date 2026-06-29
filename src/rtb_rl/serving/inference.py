@@ -122,9 +122,13 @@ class BidScorer:
 
         if cold_candidates:
             c_emb = np.stack([c.content_emb for c in cold_candidates]).astype(np.float32)
-            c_id = np.stack([self.resolver.id_embedding_for(c.content_emb) for c in cold_candidates])
-            c_ctr = np.array([self.resolver.smoothed_ctr_for(c.content_emb) for c in cold_candidates],
-                             dtype=np.float32)
+            c_id = np.stack(
+                [self.resolver.id_embedding_for(c.content_emb) for c in cold_candidates]
+            )
+            c_ctr = np.array(
+                [self.resolver.smoothed_ctr_for(c.content_emb) for c in cold_candidates],
+                dtype=np.float32,
+            )
             ad_ids = ad_ids + [c.ad_id for c in cold_candidates]
             ad_emb = np.concatenate([ad_emb, c_emb], axis=0)
             smoothed = np.concatenate([smoothed, c_ctr], axis=0)

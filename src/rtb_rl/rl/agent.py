@@ -62,7 +62,9 @@ class DQNAgent:
         return loss, info
 
     @torch.no_grad()
-    def _bootstrap_target(self, batch: dict[str, torch.Tensor], reward: torch.Tensor) -> torch.Tensor:
+    def _bootstrap_target(
+        self, batch: dict[str, torch.Tensor], reward: torch.Tensor
+    ) -> torch.Tensor:
         ns = batch["next_state"].to(self.device)
         nac = batch["next_ad_content"].to(self.device)
         npool = batch["next_pool_idx"].to(self.device)

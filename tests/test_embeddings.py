@@ -19,9 +19,9 @@ def test_same_topic_is_closer_than_cross_topic():
     # the vertical token and the description template (only the numeric title suffix differs),
     # so they must land closer than a different-vertical page.
     e = HashingEmbedder(dim=256)
-    fin1 = "finance 資産運用と投資の最新情報｜finance001 株式・投資信託・NISA・iDeCoなど資産形成を解説するメディア"
-    fin2 = "finance 資産運用と投資の最新情報｜finance007 株式・投資信託・NISA・iDeCoなど資産形成を解説するメディア"
-    game = "gaming ゲーム攻略と最新情報｜gaming003 新作ゲームのレビュー・攻略・eスポーツ情報を扱うゲームメディア"
+    fin1 = "finance 資産運用と投資の最新情報｜finance001 株式・投資信託・NISA・iDeCoなど資産形成を解説するメディア"  # noqa: E501
+    fin2 = "finance 資産運用と投資の最新情報｜finance007 株式・投資信託・NISA・iDeCoなど資産形成を解説するメディア"  # noqa: E501
+    game = "gaming ゲーム攻略と最新情報｜gaming003 新作ゲームのレビュー・攻略・eスポーツ情報を扱うゲームメディア"  # noqa: E501
     v = e.embed([fin1, fin2, game])
     finance_sim = float(v[0] @ v[1])
     cross_sim = float(v[0] @ v[2])

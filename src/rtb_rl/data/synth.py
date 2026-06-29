@@ -30,16 +30,40 @@ from rtb_rl.schemas import Ad, BidLog, User, Website
 
 # --- Japanese content templates per vertical (kept short; enough to drive embeddings) ---
 _VERTICAL_JP: dict[str, tuple[str, str]] = {
-    "finance": ("資産運用と投資の最新情報", "株式・投資信託・NISA・iDeCoなど資産形成を解説するメディア"),
-    "ecommerce": ("通販でお得にお買い物", "家電・ファッション・日用品をまとめて比較できるショッピングサイト"),
+    "finance": (
+        "資産運用と投資の最新情報",
+        "株式・投資信託・NISA・iDeCoなど資産形成を解説するメディア",
+    ),
+    "ecommerce": (
+        "通販でお得にお買い物",
+        "家電・ファッション・日用品をまとめて比較できるショッピングサイト",
+    ),
     "news": ("最新ニュースと速報", "政治・経済・社会・国際の話題を毎日配信するニュースサイト"),
-    "gaming": ("ゲーム攻略と最新情報", "新作ゲームのレビュー・攻略・eスポーツ情報を扱うゲームメディア"),
-    "travel": ("旅行とホテル予約", "国内・海外旅行の格安プランや観光スポットを紹介する旅行サイト"),
-    "health": ("健康と医療の情報", "ダイエット・サプリ・病気予防など健康に関する総合情報サイト"),
-    "tech": ("テクノロジーとガジェット", "スマホ・PC・AI・最新ガジェットのレビューを届けるテックメディア"),
-    "food": ("グルメとレシピ", "人気レストランや簡単レシピ、お取り寄せグルメを紹介する食メディア"),
+    "gaming": (
+        "ゲーム攻略と最新情報",
+        "新作ゲームのレビュー・攻略・eスポーツ情報を扱うゲームメディア",
+    ),
+    "travel": (
+        "旅行とホテル予約",
+        "国内・海外旅行の格安プランや観光スポットを紹介する旅行サイト",
+    ),
+    "health": (
+        "健康と医療の情報",
+        "ダイエット・サプリ・病気予防など健康に関する総合情報サイト",
+    ),
+    "tech": (
+        "テクノロジーとガジェット",
+        "スマホ・PC・AI・最新ガジェットのレビューを届けるテックメディア",
+    ),
+    "food": (
+        "グルメとレシピ",
+        "人気レストランや簡単レシピ、お取り寄せグルメを紹介する食メディア",
+    ),
     "sports": ("スポーツ速報と分析", "野球・サッカー・バスケなどの試合結果と分析を配信するサイト"),
-    "entertainment": ("エンタメと芸能ニュース", "映画・音楽・ドラマ・芸能の最新情報をお届けするエンタメサイト"),
+    "entertainment": (
+        "エンタメと芸能ニュース",
+        "映画・音楽・ドラマ・芸能の最新情報をお届けするエンタメサイト",
+    ),
 }
 
 _CATEGORY_CREATIVE_JP: dict[str, str] = {
@@ -288,7 +312,8 @@ def _generate_bid_logs(
         cap = bid_caps[ad_id]
         bid = float(min(cap, np.clip(market * rng.uniform(0.6, 1.4), 5, 2000)))
         won = bid >= market
-        click = bool(won and rng.random() < latent.p_click(u.user_id, ad_id, w.website_id, placement))
+        p = latent.p_click(u.user_id, ad_id, w.website_id, placement)
+        click = bool(won and rng.random() < p)
         logs.append(
             BidLog(
                 request_id=f"r{i:08d}",
