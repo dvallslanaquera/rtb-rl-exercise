@@ -93,6 +93,7 @@ $RECYCLE.BIN/
 *.pkl
 *.pickle
 checkpoints/
+registry/
 runs/
 logs/
 wandb/
