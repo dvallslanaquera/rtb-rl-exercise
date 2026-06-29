@@ -68,19 +68,19 @@ def train(
         metrics = {**last, **(extra_metrics or {}), "n_transitions": len(ds)}
         meta = registry.register(
             agent.online,
-            dict(
-                state_dim=ds.state_dim,
-                ad_content_dim=ds.ad_content_dim,
-                n_ads=ds.n_ads,
-                id_dim=ID_DIM,
-                hidden_dim=cfg.rl.hidden_dim,
-                dueling=cfg.rl.dueling,
-                embed_dim=snap.embed_dim,
-                ad_ids=snap.ad_ids,
-                embedder_name=cfg.embeddings.provider,
-                metrics=metrics,
-                parent_version=warm_start_version,
-            ),
+            {
+                "state_dim": ds.state_dim,
+                "ad_content_dim": ds.ad_content_dim,
+                "n_ads": ds.n_ads,
+                "id_dim": ID_DIM,
+                "hidden_dim": cfg.rl.hidden_dim,
+                "dueling": cfg.rl.dueling,
+                "embed_dim": snap.embed_dim,
+                "ad_ids": snap.ad_ids,
+                "embedder_name": cfg.embeddings.provider,
+                "metrics": metrics,
+                "parent_version": warm_start_version,
+            },
             promote=promote,
         )
         logger.info("Registered model %s (metrics: %s)", meta.version, metrics)
