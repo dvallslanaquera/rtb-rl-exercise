@@ -3,7 +3,7 @@ name = "rtb-rl"
 version = "0.1.0"
 description = "Deep-RL low-latency RTB (real-time bidding) optimization engine — PoC"
 authors = ["rtb-rl <dev@rtb-rl.local>"]
-license = "MIT"
+license = "Apache-2.0"
 readme = "README.md"
 keywords = ["rtb", "reinforcement-learning", "dqn", "adtech", "bidding"]
 packages = [{ include = "rtb_rl", from = "src" }]
