@@ -1,0 +1,83 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rtb-rl"
+version = "0.1.0"
+description = "Deep-RL low-latency RTB (real-time bidding) optimization engine — PoC"
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+license = { file = "LICENSE" }
+authors = [{ name = "rtb-rl" }]
+keywords = ["rtb", "reinforcement-learning", "dqn", "adtech", "bidding"]
+
+# Core dependencies — enough to run `make demo` end-to-end with the hashing
+# embedder + in-memory store, i.e. with NO network access and NO external services.
+dependencies = [
+    "numpy>=1.26",
+    "polars>=1.0",
+    "pyarrow>=16.0",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "pyyaml>=6.0",
+    "torch>=2.2",
+    "gymnasium>=0.29",
+    "scikit-learn>=1.4",
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.30",
+    "redis>=5.0",
+    "fakeredis>=2.23",
+    "sqlalchemy>=2.0",
+    "apscheduler>=3.10",
+    "httpx>=0.27",
+    "typer>=0.12",
+]
+
+[project.optional-dependencies]
+# Heavy / network-bound: real multilingual embeddings. The local embedder imports
+# these lazily and falls back to the hashing embedder if they are absent.
+embeddings = [
+    "langchain>=0.3",
+    "langchain-huggingface>=0.1",
+    "sentence-transformers>=3.0",
+]
+# Real Postgres backend (sqlite/memory work without this).
+postgres = ["asyncpg>=0.29", "psycopg[binary]>=3.2"]
+dev = [
+    "ruff>=0.5",
+    "mypy>=1.10",
+    "pytest>=8.2",
+    "pytest-asyncio>=0.23",
+    "types-PyYAML",
+]
+
+[project.scripts]
+rtb = "rtb_rl.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests", "scripts"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "C4", "SIM"]
+ignore = ["B008"]  # FastAPI/typer use function calls in argument defaults by design
+
+[tool.mypy]
+python_version = "3.11"
+packages = ["rtb_rl"]
+ignore_missing_imports = true
+disallow_untyped_defs = false
+warn_unused_ignores = false
+namespace_packages = true
+explicit_package_bases = true
+mypy_path = "src"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+filterwarnings = ["ignore::DeprecationWarning"]

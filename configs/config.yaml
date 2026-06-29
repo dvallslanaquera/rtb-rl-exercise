@@ -1,0 +1,70 @@
+# Central configuration for the RTB-RL PoC.
+# Overridable per-field via environment variables prefixed with RTB__ (double underscore
+# delimits nesting), e.g. RTB__STORE__CACHE_BACKEND=redis. Secrets (DSNs/URLs) are read
+# from the environment — see .env.example.
+
+seed: 42
+
+paths:
+  data_dir: data
+  raw_dir: data/raw
+  processed_dir: data/processed
+  checkpoints_dir: checkpoints
+  results_dir: results
+
+data:
+  n_websites: 60
+  n_users: 2000
+  n_campaigns: 20
+  n_ads: 120
+  n_bid_logs: 50000
+  # New entities held out of the historical logs to exercise the cold-start path.
+  n_coldstart_ads: 8
+  placements: [header, sidebar, in_article, footer, interstitial]
+  verticals:
+    [finance, ecommerce, news, gaming, travel, health, tech, food, sports, entertainment]
+
+embeddings:
+  provider: local              # local | api | hashing
+  model_name: intfloat/multilingual-e5-small
+  hashing_dim: 256             # dimensionality used by the offline/CI hashing fallback
+  api_provider: vertex         # vertex | openai (only used when provider == api)
+  api_model: text-embedding-3-small
+  batch_size: 64
+
+features:
+  affinity_top_k: 50           # store this many website affinities per user
+
+rl:
+  gamma: 0.85
+  lr: 0.0005
+  hidden_dim: 256
+  batch_size: 256
+  epochs: 5
+  grad_steps_per_epoch: 400
+  target_update_tau: 0.005
+  cql_alpha: 1.0               # weight of the Conservative Q-Learning penalty
+  double_dqn: true
+  dueling: true
+  click_reward: 1.0
+  cost_coef: 0.00005           # small JPY-cost regularizer on the won price
+
+sim:
+  n_eval_requests: 5000
+  candidate_pool: 40           # eligible ads scored per request
+
+serving:
+  host: 0.0.0.0
+  port: 8000
+  candidate_pool: 40
+  default_floor_jpy: 30.0      # bid floor used when suggesting a price
+
+retrain:
+  interval_hours: 6
+  recent_window_hours: 24
+  uplift_gate: 0.0             # promote a new model only if sim CTR-uplift >= this
+
+store:
+  feature_backend: memory      # memory | sqlite | postgres
+  cache_backend: memory        # memory (fakeredis) | redis
+  sqlite_path: data/processed/features.db

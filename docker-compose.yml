@@ -1,0 +1,71 @@
+# Exercises the production path: Postgres (durable feature store) + Redis (hot cache) +
+# FastAPI serving + a retrainer. `bootstrap` seeds data/features/model once; `api` and
+# `retrainer` then share the data/registry volumes.
+#
+#   docker compose up --build
+#   curl -s localhost:8000/healthz
+#   curl -s -X POST localhost:8000/bid -H 'content-type: application/json' \
+#        -d '{"request_id":"r1","website_id":"w0000","placement":"header","user_id":"u000000"}'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: rtb
+      POSTGRES_PASSWORD: rtb
+      POSTGRES_DB: rtb
+    ports: ["5432:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rtb"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  bootstrap:
+    build: .
+    command: >
+      sh -c "rtb generate-data && rtb build-features && rtb train"
+    environment: &app_env
+      POSTGRES_DSN: postgresql+asyncpg://rtb:rtb@postgres:5432/rtb
+      REDIS_URL: redis://redis:6379/0
+      RTB__STORE__FEATURE_BACKEND: postgres
+      RTB__STORE__CACHE_BACKEND: redis
+      RTB__EMBEDDINGS__PROVIDER: hashing   # deterministic + no model download in CI/compose
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    volumes: &app_vols
+      - rtb_data:/app/data
+      - rtb_registry:/app/registry
+
+  api:
+    build: .
+    command: ["rtb", "serve"]
+    environment: *app_env
+    ports: ["8000:8000"]
+    depends_on:
+      bootstrap: {condition: service_completed_successfully}
+    volumes: *app_vols
+
+  retrainer:
+    build: .
+    command: ["rtb", "retrain"]
+    environment:
+      <<: *app_env
+      RTB__RETRAIN__INTERVAL_HOURS: "6"
+    depends_on:
+      bootstrap: {condition: service_completed_successfully}
+    volumes: *app_vols
+
+volumes:
+  rtb_data:
+  rtb_registry:
