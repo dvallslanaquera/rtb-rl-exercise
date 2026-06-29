@@ -66,7 +66,7 @@ async def healthz() -> dict:
 @app.get("/model")
 async def model_info() -> dict:
     state = get_state()
-    if not state.ready():
+    if state.scorer is None:
         raise HTTPException(503, "Model not loaded")
     return {"version": state.version, "metrics": state.scorer.meta.metrics}
 
@@ -81,7 +81,7 @@ async def reload_model() -> dict:
 @app.post("/bid", response_model=BidResponse)
 async def bid(req: BidRequest) -> BidResponse:
     state = get_state()
-    if not state.ready():
+    if state.scorer is None or state.snapshot is None:
         raise HTTPException(503, "Model not loaded — run training first.")
     snap = state.snapshot
     if not snap.has_website(req.website_id):

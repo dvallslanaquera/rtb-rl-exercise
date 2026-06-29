@@ -191,7 +191,9 @@ class DurableFeatureStore:
         )
         self.metadata.create_all(self.engine)
 
-    def put(self, namespace: str, key: str, payload: dict | None, vector: np.ndarray | None) -> None:
+    def put(
+        self, namespace: str, key: str, payload: dict | None, vector: np.ndarray | None
+    ) -> None:
         from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
         blob = None if vector is None else np.asarray(vector, np.float32).tobytes()
@@ -245,7 +247,10 @@ class FeatureCache:
             data = await self._redis.get(key)
         else:
             data = self._mem.get(key)
-        return None if data is None else np.frombuffer(data, dtype=np.float32)
+        if data is None:
+            return None
+        # redis-py is typed to return bytes|str; with decode_responses off it is always bytes.
+        return np.frombuffer(data, dtype=np.float32)  # type: ignore[arg-type]
 
     async def set_float(self, key: str, value: float) -> None:
         await self.set_vector(key, np.asarray([value], np.float32))

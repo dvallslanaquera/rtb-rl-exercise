@@ -123,7 +123,7 @@ class RTBSimEnv(gym.Env):
             budget_ratio=np.clip(budget_ratio, 0.0, 1.0),
             is_cold=np.zeros(len(rows), np.float32),
         )
-        obs = {
+        obs: dict[str, np.ndarray] = {
             "state": state.astype(np.float32),
             "ad_content": ad_content.astype(np.float32),
             "ad_idx": rows.astype(np.int64),
