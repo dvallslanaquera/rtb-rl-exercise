@@ -66,7 +66,14 @@ DQN training → simulation → serving → retraining — runs locally end-to-e
 ```mermaid
 flowchart LR
     subgraph OFF["🛠️ Offline · batch · every N hours"]
-        D["Synthetic data<br/>sites · users · ads · bid logs"] --> E["Embeddings<br/>multilingual-e5 / hashing"]
+        DB1[("🌐 Website Data<br/>sites · pages")]
+        DB2[("👤 User Data<br/>profiles · sessions")]
+        DB3[("📢 Ad Data<br/>creatives · campaigns")]
+        DB4[("📜 Bid History<br/>logged auctions")]
+        DB1 --> E["Embeddings<br/>multilingual-e5 / hashing"]
+        DB2 --> E
+        DB3 --> E
+        DB4 --> E
         E --> A["User↔Site affinity<br/>cosine · top-K"]
         E --> F["FeatureSnapshot<br/>+ market context"]
         A --> F
@@ -88,7 +95,9 @@ flowchart LR
 
     classDef off fill:#eef6ff,stroke:#4a90d9,color:#0b3d66;
     classDef on fill:#eafaef,stroke:#3aa657,color:#0b4d2c;
-    class D,E,A,F,T,S,R off;
+    classDef data fill:#fff7e6,stroke:#d9911e,color:#663d00;
+    class E,A,F,T,S,R off;
+    class DB1,DB2,DB3,DB4 data;
     class REQ,SCORE,CACHE,RESP on;
 ```
 
