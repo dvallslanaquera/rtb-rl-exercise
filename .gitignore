@@ -123,6 +123,9 @@ figures/
 !docs/**/*.png
 !docs/**/*.svg
 
+# ---------- Local planning notes ----------
+.commit-plan.md
+
 # ---------- Logs ----------
 *.log
 logs/
