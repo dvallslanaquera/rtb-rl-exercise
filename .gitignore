@@ -125,6 +125,7 @@ figures/
 
 # ---------- Local planning notes ----------
 .commit-plan.md
+TUTORIAL_SIMPLE.md
 
 # ---------- Logs ----------
 *.log
