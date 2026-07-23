@@ -78,7 +78,10 @@ class BidRequest(BaseModel):
     user_id: str
     # Optional explicit candidate set; when omitted, eligible ads are selected server-side.
     candidate_ad_ids: list[str] | None = None
-    floor_price_jpy: float = 0.0
+    # Optional auction floor. When omitted (None) the server applies cfg.serving.default_floor_jpy;
+    # an explicit 0.0 is honored as "no floor". The None default is what lets the configured
+    # fallback actually take effect on the hot path.
+    floor_price_jpy: float | None = None
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
 

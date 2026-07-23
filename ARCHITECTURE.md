@@ -171,8 +171,9 @@ These are deliberate PoC boundaries or known defects, kept visible on purpose:
 6. **Write-only production sinks** — Redis cache and SQL store are populated but never read;
    the sqlite-dialect upsert would not compile against Postgres.
 7. **Event-loop blocking in serving** under concurrency (§3).
-8. **Serving floor default bypassed** — `BidRequest.floor_price_jpy` defaults to `0.0`, so the
-   `serving.default_floor_jpy` fallback (which triggers on `None`) never applies.
+8. **Serving floor default bypassed** — addressed: `BidRequest.floor_price_jpy` now defaults
+   to `None`, so omitting it lets `serving.default_floor_jpy` apply on the hot path; an
+   explicit `0.0` is still honored as "no floor".
 9. **Unvalidated candidate ids** — addressed: an unknown `candidate_ad_ids` entry now raises
    `UnknownCandidateError` in `BidScorer`, which the `/bid` handler maps to HTTP 400 (caller
    error) instead of surfacing as a 500 from a bare `KeyError`.

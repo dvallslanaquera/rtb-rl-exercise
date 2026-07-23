@@ -79,6 +79,36 @@ def test_bid_endpoint(cfg):
         deps_mod._state = None
 
 
+def test_bid_honors_default_floor_when_omitted(cfg):
+    """Gap #8: omitting floor_price_jpy must apply cfg.serving.default_floor_jpy, not 0.0."""
+    from fastapi.testclient import TestClient
+
+    from rtb_rl.serving.app import app
+    from rtb_rl.serving.deps import ServingState
+
+    _bootstrap(cfg)
+    state = ServingState(cfg)
+    state.load()
+    deps_mod._state = state
+    try:
+        with TestClient(app) as client:
+            # No floor_price_jpy in the payload -> default floor should apply.
+            resp = client.post(
+                "/bid",
+                json={
+                    "request_id": "r1",
+                    "website_id": "w0000",
+                    "placement": "header",
+                    "user_id": "u000000",
+                },
+            )
+            assert resp.status_code == 200
+            # suggest_bid floors the bid at `floor`; with the default applied, bid >= default floor.
+            assert resp.json()["bid_price_jpy"] >= cfg.serving.default_floor_jpy
+    finally:
+        deps_mod._state = None
+
+
 def test_coldstart_scoring(cfg):
     _bootstrap(cfg)
     snap = FeatureSnapshot.load(cfg)
