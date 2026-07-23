@@ -30,6 +30,15 @@ class ColdAd:
     bid_cap_jpy: float
 
 
+class UnknownCandidateError(ValueError):
+    """A requested candidate ad id is not in the feature snapshot.
+
+    Raised by :meth:`BidScorer.score` when ``candidate_ad_ids`` contains an id the snapshot
+    has no row for. The serving layer maps this to an HTTP 400 (caller error) rather than
+    letting the implicit ``KeyError`` surface as a 500.
+    """
+
+
 @dataclass
 class ScoreResult:
     ad_id: str
@@ -121,6 +130,11 @@ class BidScorer:
         if candidate_ad_ids is None:
             rows = np.arange(len(snap.ad_ids))
         else:
+            unknown = [a for a in candidate_ad_ids if a not in self._ad_index]
+            if unknown:
+                raise UnknownCandidateError(
+                    f"Unknown candidate ad ids (not in snapshot): {unknown}"
+                )
             rows = np.array([self._ad_index[a] for a in candidate_ad_ids], dtype=int)
 
         ad_ids = [snap.ad_ids[i] for i in rows]

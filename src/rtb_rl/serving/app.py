@@ -19,6 +19,7 @@ from fastapi import FastAPI, HTTPException
 
 from rtb_rl.schemas import BidRequest, BidResponse
 from rtb_rl.serving.deps import HOT_SWAP_POLL_SECONDS, get_state
+from rtb_rl.serving.inference import UnknownCandidateError
 
 logger = logging.getLogger(__name__)
 
@@ -90,13 +91,17 @@ async def bid(req: BidRequest) -> BidResponse:
         raise HTTPException(422, f"Unknown placement: {req.placement}")
 
     t0 = time.perf_counter()
-    res = state.scorer.score(
-        website_id=req.website_id,
-        user_id=req.user_id,
-        placement=req.placement,
-        candidate_ad_ids=req.candidate_ad_ids,
-        floor_price_jpy=req.floor_price_jpy,
-    )
+    try:
+        res = state.scorer.score(
+            website_id=req.website_id,
+            user_id=req.user_id,
+            placement=req.placement,
+            candidate_ad_ids=req.candidate_ad_ids,
+            floor_price_jpy=req.floor_price_jpy,
+        )
+    except UnknownCandidateError as exc:
+        # Caller supplied an ad id the snapshot has no row for — 400, not a 500.
+        raise HTTPException(400, str(exc)) from exc
     latency_ms = (time.perf_counter() - t0) * 1000.0
     return BidResponse(
         request_id=req.request_id,

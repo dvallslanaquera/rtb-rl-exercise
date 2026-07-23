@@ -173,7 +173,9 @@ These are deliberate PoC boundaries or known defects, kept visible on purpose:
 7. **Event-loop blocking in serving** under concurrency (§3).
 8. **Serving floor default bypassed** — `BidRequest.floor_price_jpy` defaults to `0.0`, so the
    `serving.default_floor_jpy` fallback (which triggers on `None`) never applies.
-9. **Unvalidated candidate ids** — an unknown `candidate_ad_ids` entry raises `KeyError` → 500.
+9. **Unvalidated candidate ids** — addressed: an unknown `candidate_ad_ids` entry now raises
+   `UnknownCandidateError` in `BidScorer`, which the `/bid` handler maps to HTTP 400 (caller
+   error) instead of surfacing as a 500 from a bare `KeyError`.
 10. **Q is not a calibrated probability** — MSE-to-{0,1} minus cost, further depressed by CQL;
     `predicted_click_value` can exceed 1 and the `floor + cap·clip(Q,0,1)` bid rule is ad-hoc
     (a value-based bidder would bid `E[click] × value_per_click`, market-aware).

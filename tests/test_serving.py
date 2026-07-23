@@ -61,6 +61,20 @@ def test_bid_endpoint(cfg):
                 },
             )
             assert bad.status_code == 404
+
+            # unknown candidate ad id -> 400 (not a 500 from a bare KeyError)
+            known_ad = state.snapshot.ad_ids[0]
+            bad_cand = client.post(
+                "/bid",
+                json={
+                    "request_id": "r3",
+                    "website_id": "w0000",
+                    "placement": "header",
+                    "user_id": "u000000",
+                    "candidate_ad_ids": [known_ad, "ad_does_not_exist"],
+                },
+            )
+            assert bad_cand.status_code == 400
     finally:
         deps_mod._state = None
 
