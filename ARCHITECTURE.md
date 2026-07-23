@@ -154,10 +154,12 @@ These are deliberate PoC boundaries or known defects, kept visible on purpose:
 1. **Config env-override precedence is inverted** — YAML values (passed as init kwargs) beat
    `RTB__*` env vars, so documented overrides are silently ignored for any field set in
    `config.yaml`. Downstream effect: docker-compose's Postgres/Redis backends never activate.
-2. **Model/snapshot version skew on hot-swap** — `ServingState.load()` refreshes the model but
-   reuses the already-loaded snapshot, and never validates `ModelMeta.ad_ids` against
-   `snapshot.ad_ids`. If the retrain cycle changed the inventory, id-embedding rows silently
-   misalign (or index out of range).
+2. **Model/snapshot version skew on hot-swap** — `BidScorer.__init__` now validates that
+   `ModelMeta.ad_ids` equals `snapshot.ad_ids` (same ids, same order) and raises on mismatch,
+   so a stale-snapshot hot-swap fails loudly instead of silently misaligning positional
+   id-embedding rows. `ServingState.load()` still reuses the cached snapshot between hot-swap
+   polls, so an inventory-changing retrain that isn't followed by a fresh `load()` will surface
+   as that validation error rather than auto-refreshing.
 3. **The sequential-RL machinery is unused in training** — no env rollouts, no bootstrap
    targets, constant budget feature; γ, Double-DQN, and the dueling value head are effectively
    dormant. Related: the dueling head's advantage-mean centering makes absolute Q values

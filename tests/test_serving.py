@@ -1,3 +1,7 @@
+import dataclasses
+
+import pytest
+
 import rtb_rl.serving.deps as deps_mod
 from rtb_rl.data import loaders
 from rtb_rl.data.synth import generate
@@ -83,3 +87,15 @@ def test_coldstart_scoring(cfg):
     res2 = scorer.score(snap.website_ids[0], "u999999", "header",
                         candidate_ad_ids=snap.ad_ids[:5])
     assert res2.cold_start is True
+
+
+def test_scorer_rejects_snapshot_model_ad_id_skew(cfg):
+    """Gap #2: a model whose id-embedding order differs from the snapshot must refuse to score
+    rather than silently misalign positional rows."""
+    _bootstrap(cfg)
+    snap = FeatureSnapshot.load(cfg)
+    model, meta = ModelRegistry(cfg).load_latest()
+    # Reversing the ad-id order breaks the positional id-embedding contract.
+    skewed = dataclasses.replace(meta, ad_ids=list(reversed(meta.ad_ids)))
+    with pytest.raises(ValueError, match="ad-id mismatch"):
+        BidScorer(snap, model, skewed, cfg)

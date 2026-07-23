@@ -54,6 +54,16 @@ class BidScorer:
         self.model = model.eval()
         self.meta = meta
         self.cfg = cfg
+        # Id-embedding rows are positional: row i is the learned vector for meta.ad_ids[i],
+        # and the snapshot indexes ads by snap.ad_ids[i]. If the two orderings disagree (e.g. a
+        # hot-swap paired a new model with a stale snapshot whose inventory changed), rows
+        # silently misalign or index out of range. Refuse to score rather than emit garbage.
+        if list(meta.ad_ids) != list(snap.ad_ids):
+            raise ValueError(
+                f"Model/snapshot ad-id mismatch: model {meta.version} was trained on "
+                f"{len(meta.ad_ids)} ads, snapshot has {len(snap.ad_ids)}. "
+                "Id-embedding rows are positional; reload features and the model together."
+            )
         id_table = model.id_emb.weight.detach().cpu().numpy()
         self.resolver = ColdStartResolver(snap, id_table, k=cold_k)
         self._id_table = id_table  # (Na, id_dim)
