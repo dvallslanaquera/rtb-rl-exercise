@@ -1,6 +1,6 @@
 <div align="center">
 
-# 📈 rtb-rl
+# rtb-rl
 
 *Because RL doesn't need to be the unpopular guy at the classroom.*
 
@@ -17,38 +17,38 @@
 
 ---
 
-## 🚀 Highlights
+## Highlights
 
-- 🎯 **Picks the highest-click-probability ad** per bid request — Dueling **Double-DQN + CQL** over website, user and auction features.
-- ⚡ **~10 ms serving** — warm in-memory model + Redis feature cache, single batched matmul (`p99 ≈ 1 ms` locally).
-- ♻️ **Self-adapting** — retrains every *N* hours and **hot-swaps** the model when a new one beats the incumbent in simulation.
-- ❄️ **Solves cold-start** — brand-new ads/users are scored from their nearest neighbors in embedding space, no history required.
-- 🧩 **Runs with zero setup** — synthetic data + a deterministic offline embedder mean `rtb demo` works with no data, no keys, no services.
-- 🏢 **Production-shaped** — FastAPI · Redis · PostgreSQL · Docker Compose · Vertex AI + Terraform stubs · GitHub Actions CI.
+- **Picks the highest-click-probability ad** per bid request. Dueling **Double-DQN + CQL** over website, user and auction features.
+- **~10 ms serving.** Warm in-memory model + Redis feature cache, single batched matmul (`p99 ≈ 1 ms` locally).
+- **Self-adapting.** Retrains every *N* hours and **hot-swaps** the model when a new one beats the incumbent in simulation.
+- **Solves cold-start.** Brand-new ads/users are scored from their nearest neighbors in embedding space, no history required.
+- **Runs with zero setup.** Synthetic data + a deterministic offline embedder mean `rtb demo` works with no data, no keys, no services.
+- **Production-shaped.** FastAPI · Redis · PostgreSQL · Docker Compose · Vertex AI + Terraform stubs · GitHub Actions CI.
 
 ---
 
-## 📖 Overview
+## Overview
 
 `rtb-rl` is a reconstruction of a real-time-bidding (RTB) yield-optimization PoC built at a
 Japanese ad-tech company. For every incoming bid opportunity it selects the advertisement with
-the **highest probability of getting a click** — using the website's context, the user's
-engagement profile, and historical auction logs — suggests a bid, and serves the decision
+the **highest probability of getting a click**, using the website's context, the user's
+engagement profile, and historical auction logs, suggests a bid, and serves the decision
 under a low-latency SLA. The policy **retrains on a schedule** to track market drift (new
 competitor campaigns, budget/pacing changes) and degrades gracefully for **never-seen ads and
 users**.
 
 Everything is driven by **synthetic data** generated from a known latent click model that the
-offline simulator reuses as ground truth, so the entire pipeline — embeddings → affinity →
-DQN training → simulation → serving → retraining — runs locally end-to-end.
+offline simulator reuses as ground truth, so the entire pipeline (embeddings, affinity,
+DQN training, simulation, serving, retraining) runs locally end-to-end.
 
-> 🇯🇵 深層強化学習による低遅延RTB（リアルタイム入札）最適化エンジン。ウェブサイト・ユーザー・過去の入札ログから
+> 深層強化学習による低遅延RTB（リアルタイム入札）最適化エンジン。ウェブサイト・ユーザー・過去の入札ログから
 > **クリック率が最も高い広告**を選び、10ms以内で配信。市場の変化に追従するためN時間ごとに再学習し、
 > 新規広告・ユーザーのコールドスタート問題にも対応します。
 
 ---
 
-## 🧱 Tech stack
+## Tech stack
 
 | Layer | Tools |
 |---|---|
@@ -61,15 +61,15 @@ DQN training → simulation → serving → retraining — runs locally end-to-e
 
 ---
 
-## 🗺️ Architecture
+## Architecture
 
 ```mermaid
 flowchart LR
-    subgraph OFF["🛠️ Offline · batch · every N hours"]
-        DB1[("🌐 Website Data<br/>sites · pages")]
-        DB2[("👤 User Data<br/>profiles · sessions")]
-        DB3[("📢 Ad Data<br/>creatives · campaigns")]
-        DB4[("📜 Bid History<br/>logged auctions")]
+    subgraph OFF["Offline · batch · every N hours"]
+        DB1[("Website Data<br/>sites · pages")]
+        DB2[("User Data<br/>profiles · sessions")]
+        DB3[("Ad Data<br/>creatives · campaigns")]
+        DB4[("Bid History<br/>logged auctions")]
         DB1 --> E["Embeddings<br/>multilingual-e5 / hashing"]
         DB2 --> E
         DB3 --> E
@@ -84,7 +84,7 @@ flowchart LR
         S -->|"CTR-uplift gate"| R
     end
 
-    subgraph ON["⚡ Online · ~10 ms"]
+    subgraph ON["Online · ~10 ms"]
         REQ["Bid request"] --> SCORE["FastAPI /bid<br/>argmax Q over candidate ads"]
         CACHE[("Redis<br/>feature cache")] --> SCORE
         SCORE --> RESP["Chosen ad + suggested bid"]
@@ -101,7 +101,7 @@ flowchart LR
     class REQ,SCORE,CACHE,RESP on;
 ```
 
-### 🧠 Design decisions
+### Design decisions
 
 - **DQN over *ad features*, not a fixed action head.** The network scores `Q(state, ad_features)`
   and the server argmaxes over eligible ads. Representing an ad by its features/embeddings
@@ -109,7 +109,7 @@ flowchart LR
 - **Click-probability objective.** Training uses **won impressions only** (a click is observable
   only when the ad was shown), so `Q(s,a)` learns expected click value *given the ad is served*.
 - **Conservative offline RL.** A **CQL** penalty stops the model overvaluing actions absent from
-  the logs — the key correction when learning a policy from logged bids you can't safely explore.
+  the logs. It is the key correction when learning a policy from logged bids you can't safely explore.
 - **Why RL, not a bandit.** Campaign **budget/pacing** is part of the state, coupling successive
   impressions into an episode; the Gymnasium simulator provides that sequential MDP for tuning.
 - **Cold-start by borrowing.** A learned per-ad id-embedding captures residual appeal; a new ad
@@ -119,7 +119,7 @@ flowchart LR
 
 ---
 
-## 📊 Results
+## Results
 
 From `rtb demo` (hashing embedder, seed 42): 60 sites · 2,000 users · 112 ads · 50k bid logs.
 
@@ -135,7 +135,7 @@ From `rtb demo` (hashing embedder, seed 42): 60 sites · 2,000 users · 112 ads 
 
 ---
 
-## ⚡ Installation
+## Installation
 
 Requires **Python 3.12** (PyTorch has no 3.13/3.14 wheels yet). No GPU or network needed.
 
@@ -158,7 +158,7 @@ rtb demo
 
 ---
 
-## 🖥️ Commands
+## Commands
 
 | Command | What it does |
 |---|---|
@@ -172,7 +172,7 @@ rtb demo
 | `rtb retrain` | Run the continuous loop every `retrain.interval_hours` (APScheduler) |
 
 > Prefix with `poetry run` when using Poetry (e.g. `poetry run rtb serve`). Equivalent `make`
-> targets (`make demo`, `make train`, …) and `scripts/*.py` wrappers are also provided.
+> targets (`make demo`, `make train`, ...) and `scripts/*.py` wrappers are also provided.
 
 ### Score a bid
 
@@ -180,15 +180,15 @@ rtb demo
 rtb serve
 curl -s -X POST localhost:8000/bid -H 'content-type: application/json' \
   -d '{"request_id":"r1","website_id":"w0000","placement":"header","user_id":"u000001"}'
-# → {"ad_id":"ad011","bid_price_jpy":155.2,"predicted_click_value":1.21,"model_version":"v…","latency_ms":0.8}
+# -> {"ad_id":"ad011","bid_price_jpy":155.2,"predicted_click_value":1.21,"model_version":"v...","latency_ms":0.8}
 ```
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
 All settings live in [`configs/config.yaml`](configs/config.yaml); every field is overridable by
-environment variable `RTB__SECTION__FIELD`. Secrets come from the environment — see
+environment variable `RTB__SECTION__FIELD`. Secrets come from the environment, see
 [`.env.example`](.env.example).
 
 | Setting | Default | Meaning |
@@ -211,7 +211,7 @@ environment variable `RTB__SECTION__FIELD`. Secrets come from the environment �
 
 ---
 
-## 🐳 Docker & production path
+## Docker & production path
 
 `docker compose up --build` brings up **Postgres** (durable feature store) + **Redis** (hot
 cache) + the **API** + a **retrainer**; a one-shot `bootstrap` service seeds data/features/model.
@@ -223,11 +223,11 @@ curl -s localhost:8000/healthz
 
 [`infra/terraform/`](infra/terraform) (Cloud Run + Memorystore + Cloud SQL) and
 [`infra/vertex/pipeline.py`](infra/vertex/pipeline.py) (Vertex AI Pipelines DAG) document the GCP
-topology as reviewed stubs — the every-*N*-hours retrain DAG maps 1:1 onto a Vertex Pipelines schedule.
+topology as reviewed stubs. The every-*N*-hours retrain DAG maps 1:1 onto a Vertex Pipelines schedule.
 
 ---
 
-## 🧪 Testing & quality
+## Testing & quality
 
 ```bash
 poetry run pytest -q          # 17 tests, fully offline (~8s)
@@ -240,7 +240,7 @@ end-to-end `rtb demo` smoke test on Python 3.12.
 
 ---
 
-## 📂 Project layout
+## Project layout
 
 ```
 src/rtb_rl/
@@ -257,22 +257,22 @@ tests/  infra/  configs/  scripts/  Dockerfile  docker-compose.yml
 
 ---
 
-## ⚠️ Limitations
+## Limitations
 
 - Synthetic data is generated from a known click model that is also the simulator's ground
   truth, so reported uplift is a sanity signal, not a production claim.
 - Offline log training is one-step (independent impressions); the sequential `gamma>0` path is
   exercised via the simulator. SNIPS is a coarse, high-variance off-policy check.
-- The hashing embedder is purely lexical — install the `embeddings` extra for semantic quality.
+- The hashing embedder is purely lexical. Install the `embeddings` extra for semantic quality.
 
 ---
 
-## 📜 License
+## License
 
-Apache-2.0 — see [`LICENSE`](LICENSE).
+Apache-2.0, see [`LICENSE`](LICENSE).
 
 <div align="center">
 
-Built as a portfolio reconstruction of a Japanese ad-tech RTB PoC. ☕
+Built as a portfolio reconstruction of a Japanese ad-tech RTB PoC.
 
 </div>
